@@ -666,6 +666,7 @@ app.post("/api/bookings", verifyToken, verifyCustomer, async (req, res) => {
   }
 
   const now = new Date();
+  // Snapshot service and technician data so later edits/deletes do not change this booking.
   const doc = {
     serviceId: String(service._id),
     serviceTitle: service.title,
