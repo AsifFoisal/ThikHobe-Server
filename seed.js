@@ -41,7 +41,7 @@ const demoUsers = [
 ];
 
 const serviceRows = [
-  ["iPhone Screen & Battery Replacement", "Smartphone", "Original-quality screen and battery replacement with a post-repair bench test.", "/images/service-phone.jpg", 120, "1-2 hours", "Home Visit", "Dhanmondi", "rafi@fixmate.test"],
+  ["iPhone Screen & Battery Replacement", "Smartphone", "Original-quality screen and battery replacement with a post-repair bench test.", "/images/service-phone-alt.jpg", 120, "1-2 hours", "Home Visit", "Dhanmondi", "rafi@fixmate.test"],
   ["Samsung Charging Port Repair", "Smartphone", "Charging port replacement and board inspection for Samsung phones.", "/images/service-smartphone.jpg", 45, "45 minutes", "Shop Drop-off", "Mirpur", "rafi@fixmate.test"],
   ["Smartphone Water Damage Treatment", "Smartphone", "Ultrasonic cleaning and corrosion treatment after liquid damage.", "/images/service-phone-alt.jpg", 55, "2 hours", "Shop Drop-off", "Mirpur", "nusrat@fixmate.test"],
   ["MacBook Logic Board Diagnosis", "Laptop & PC", "Board-level diagnosis and a written repair estimate before any work begins.", "/images/service-laptop.jpg", 90, "1 day", "Shop Drop-off", "Dhanmondi", "nusrat@fixmate.test"],
@@ -153,11 +153,24 @@ try {
 
     const docs = titles.map((title, index) => {
       const service = byTitle[title];
+      const status = statuses[index];
+      const createdAt = new Date(now + createdOffsets[index] * 86400000);
+      const stages =
+        status === "completed"
+          ? ["requested", "accepted", "in-progress", "completed"]
+          : status === "in-progress"
+            ? ["requested", "accepted", "in-progress"]
+            : status === "accepted"
+              ? ["requested", "accepted"]
+              : ["requested"];
+
       return {
         serviceId: String(service._id),
         serviceTitle: service.title,
         serviceImage: service.image,
         category: service.category,
+        serviceMode: service.serviceMode,
+        serviceArea: service.serviceArea,
         basePrice: service.basePrice,
         technicianName: service.technicianName,
         technicianEmail: service.technicianEmail,
@@ -167,10 +180,14 @@ try {
         address: "Flat 4B, House 12, Road 7, Dhanmondi",
         preferredDate: new Date(now + dateOffsets[index] * 86400000),
         problemDescription: problems[index],
-        status: statuses[index],
+        status,
         finalAmount: service.basePrice,
         paymentStatus: "unpaid",
-        createdAt: new Date(now + createdOffsets[index] * 86400000),
+        statusHistory: stages.map((stage, stageIndex) => ({
+          status: stage,
+          at: new Date(createdAt.getTime() + stageIndex * 3600000),
+        })),
+        createdAt,
       };
     });
 

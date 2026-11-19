@@ -5,8 +5,10 @@ import { findUserByEmail, findUserById, publicUser } from "../db.js";
 const authUrl = (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 const issuer = process.env.JWT_ISSUER ?? "fixmate";
 const audience = process.env.JWT_AUDIENCE ?? "fixmate-client";
+const jwksUrl =
+  (process.env.BETTER_AUTH_JWKS_URL ?? "").trim() || `${authUrl}/api/auth/jwks`;
 
-const jwks = createRemoteJWKSet(new URL(`${authUrl}/api/auth/jwks`));
+const jwks = createRemoteJWKSet(new URL(jwksUrl));
 
 const unauthorized = (res, message) =>
   res

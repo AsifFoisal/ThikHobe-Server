@@ -2,11 +2,13 @@ import "dotenv/config";
 
 import cors from "cors";
 import express from "express";
+import Stripe from "stripe";
 
 import {
   bookings,
   connectDb,
   findUserById,
+  getDb,
   payments,
   publicUser,
   services,
@@ -69,6 +71,131 @@ const parsePreferredDate = (value) => {
   return date < today ? null : date;
 };
 
+const clientUrl = (process.env.CLIENT_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+let stripeClient;
+
+const getStripe = () => {
+  const key = (process.env.STRIPE_SECRET_KEY ?? "").trim();
+  if (!key || !key.startsWith("sk_test_")) return null;
+  stripeClient ??= new Stripe(key, { timeout: 10000, maxNetworkRetries: 1 });
+  return stripeClient;
+};
+
+/**
+ * The one idempotent payment writer used by both the success page and webhook.
+ * Unique bookingId / stripeSessionId indexes back up the pre-insert check.
+ */
+async function savePayment(session) {
+  if (session.payment_status !== "paid") {
+    throw Object.assign(new Error("Payment has not been completed"), { status: 400 });
+  }
+
+  const bookingId = toId(session.metadata?.bookingId);
+  if (!bookingId) throw Object.assign(new Error("Session has no valid bookingId"), { status: 400 });
+
+  const booking = await bookings().findOne({ _id: bookingId });
+  if (!booking) throw Object.assign(new Error("Booking not found"), { status: 404 });
+  if (booking.status !== "completed") {
+    throw Object.assign(new Error("Booking is not completed"), { status: 400 });
+  }
+  if (
+    session.metadata?.customerEmail &&
+    session.metadata.customerEmail !== booking.customerEmail
+  ) {
+    throw Object.assign(new Error("Session customer does not match the booking"), { status: 400 });
+  }
+
+  const expectedCents = Math.round(Number(booking.finalAmount) * 100);
+  if (session.amount_total != null && session.amount_total !== expectedCents) {
+    throw Object.assign(new Error("Checkout amount does not match the booking"), { status: 400 });
+  }
+
+  const existing = await payments().findOne({
+    $or: [{ stripeSessionId: session.id }, { bookingId: String(booking._id) }],
+  });
+  if (existing) {
+    await bookings().updateOne(
+      { _id: booking._id, paymentStatus: "unpaid" },
+      {
+        $set: { paymentStatus: "paid" },
+        $push: { statusHistory: { status: "paid", at: new Date() } },
+      }
+    );
+    return existing;
+  }
+
+  const payment = {
+    bookingId: String(booking._id),
+    serviceTitle: booking.serviceTitle,
+    customerName: booking.customerName,
+    customerEmail: booking.customerEmail,
+    technicianName: booking.technicianName,
+    technicianEmail: booking.technicianEmail,
+    amount: (session.amount_total ?? expectedCents) / 100,
+    currency: (session.currency ?? "usd").toLowerCase(),
+    transactionId:
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id ?? session.id,
+    stripeSessionId: session.id,
+    paymentStatus: "paid",
+    paidAt: new Date(),
+  };
+
+  let saved = payment;
+  try {
+    const result = await payments().insertOne(payment);
+    saved = { ...payment, _id: result.insertedId };
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+    saved = await payments().findOne({
+      $or: [{ stripeSessionId: payment.stripeSessionId }, { bookingId: payment.bookingId }],
+    });
+    if (!saved) throw error;
+  }
+
+  await bookings().updateOne(
+    { _id: booking._id, paymentStatus: "unpaid" },
+    {
+      $set: { paymentStatus: "paid" },
+      $push: { statusHistory: { status: "paid", at: new Date() } },
+    }
+  );
+
+  return saved;
+}
+
+async function stripeWebhook(req, res) {
+  const stripe = getStripe();
+  const webhookSecret = (process.env.STRIPE_WEBHOOK_SECRET ?? "").trim();
+  if (!stripe || !webhookSecret) {
+    return res.status(400).json({ success: false, message: "Stripe webhook is not configured" });
+  }
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      req.headers["stripe-signature"],
+      webhookSecret
+    );
+  } catch {
+    return res.status(400).json({ success: false, message: "Invalid webhook signature" });
+  }
+
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      if (session.payment_status === "paid") await savePayment(session);
+    }
+    res.json({ received: true });
+  } catch (error) {
+    console.error("Webhook processing failed:", error);
+    const status = error.status && error.status < 500 ? 400 : 500;
+    res.status(status).json({ success: false, message: "Webhook processing failed" });
+  }
+}
+
 function parseService(body = {}) {
   const data = {
     title: str(body.title),
@@ -121,9 +248,12 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
   })
 );
+
+// Stripe signs the raw body, so this route is mounted before express.json().
+app.post("/api/payments/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const isImageBuffer = (buffer) => {
@@ -173,7 +303,159 @@ app.post("/api/uploads", express.json({ limit: "8mb" }), verifyToken, async (req
 
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/api/health", async (_req, res) => {
+  try {
+    await getDb().command({ ping: 1 }, { maxTimeMS: 2000 });
+    res.json({ status: "ok" });
+  } catch {
+    res.status(503).json({ success: false, message: "Database unavailable" });
+  }
+});
+
+app.post(
+  "/api/payments/create-checkout-session",
+  verifyToken,
+  verifyCustomer,
+  async (req, res) => {
+    const stripe = getStripe();
+    if (!stripe) {
+      return res
+        .status(503)
+        .json({ success: false, message: "Stripe test mode is not configured" });
+    }
+
+    const _id = toId(str(req.body?.bookingId));
+    if (!_id) return res.status(404).json({ success: false, message: "Booking not found" });
+
+    const booking = await bookings().findOne({ _id });
+    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+    if (booking.customerEmail !== req.user.email) {
+      return res.status(403).json({ success: false, message: "Forbidden: this is not your booking" });
+    }
+    if (booking.status !== "completed") {
+      return res
+        .status(400)
+        .json({ success: false, message: "You can only pay for a completed job" });
+    }
+    if (booking.paymentStatus !== "unpaid") {
+      return res.status(400).json({ success: false, message: "This booking is already paid" });
+    }
+
+    const amount = Number(booking.finalAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "The booking has no payable amount" });
+    }
+
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        customer_email: booking.customerEmail,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: Math.round(amount * 100),
+              product_data: {
+                name: booking.serviceTitle,
+                description: `Repair job by ${booking.technicianName}`,
+              },
+            },
+          },
+        ],
+        metadata: {
+          bookingId: String(booking._id),
+          customerEmail: booking.customerEmail,
+        },
+        success_url: `${clientUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${clientUrl}/payment/cancel`,
+      });
+    } catch (error) {
+      console.error("Stripe checkout creation failed:", error);
+      return res
+        .status(502)
+        .json({ success: false, message: "Stripe checkout could not be created" });
+    }
+
+    if (!session.url) {
+      return res
+        .status(502)
+        .json({ success: false, message: "Stripe did not return a checkout URL" });
+    }
+
+    res.json({ url: session.url, sessionId: session.id });
+  }
+);
+
+app.get("/api/payments/my", verifyToken, verifyCustomer, async (req, res) => {
+  const items = await payments()
+    .find({ customerEmail: req.user.email })
+    .sort({ paidAt: -1 })
+    .toArray();
+  res.json({ items });
+});
+
+app.get("/api/payments/verify", verifyToken, verifyCustomer, async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) {
+    return res
+      .status(503)
+      .json({ success: false, message: "Stripe test mode is not configured" });
+  }
+
+  const sessionId = str(req.query.session_id);
+  if (!sessionId) {
+    return res.status(400).json({ success: false, message: "session_id is required" });
+  }
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.retrieve(sessionId);
+  } catch (error) {
+    if (error?.statusCode === 404 || error?.code === "resource_missing") {
+      return res.status(404).json({ success: false, message: "Checkout session not found" });
+    }
+    return res
+      .status(502)
+      .json({ success: false, message: "Stripe could not verify this checkout session" });
+  }
+
+  if (session.metadata?.customerEmail !== req.user.email) {
+    return res.status(403).json({ success: false, message: "Forbidden: this payment is not yours" });
+  }
+  if (session.payment_status !== "paid") {
+    return res.status(400).json({ success: false, message: "Payment has not been completed" });
+  }
+
+  const bookingId = toId(session.metadata?.bookingId);
+  if (!bookingId) {
+    return res.status(400).json({ success: false, message: "Checkout session has no booking" });
+  }
+
+  const booking = await bookings().findOne({ _id: bookingId });
+  if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+  if (booking.customerEmail !== req.user.email) {
+    return res.status(403).json({ success: false, message: "Forbidden: this payment is not yours" });
+  }
+  if (booking.status !== "completed") {
+    return res.status(400).json({ success: false, message: "Booking is not completed" });
+  }
+
+  const payment = await savePayment(session);
+  res.json({
+    status: "paid",
+    bookingId: payment.bookingId,
+    serviceTitle: payment.serviceTitle,
+    amount: payment.amount,
+    currency: payment.currency,
+    transactionId: payment.transactionId,
+    paidAt: payment.paidAt,
+    payment,
+  });
+});
 
 // Public services
 app.get("/api/services", async (req, res) => {
@@ -223,6 +505,14 @@ app.get("/api/services", async (req, res) => {
     items,
     pagination: { page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1) },
   });
+});
+
+app.get("/api/services/mine", verifyToken, verifyTechnician, async (req, res) => {
+  const items = await services()
+    .find({ technicianEmail: req.user.email })
+    .sort({ createdAt: -1 })
+    .toArray();
+  res.json({ items });
 });
 
 app.get("/api/services/:id", async (req, res) => {
@@ -284,6 +574,26 @@ app.patch("/api/services/:id", verifyToken, verifyTechnician, async (req, res) =
     { returnDocument: "after" }
   );
   if (!updated) return res.status(404).json({ success: false, message: "Service not found" });
+  res.json(updated);
+});
+
+app.patch("/api/services/:id/availability", verifyToken, verifyTechnician, async (req, res) => {
+  const _id = toId(req.params.id);
+  if (!_id) return res.status(404).json({ success: false, message: "Service not found" });
+  if (typeof req.body?.isAvailable !== "boolean") {
+    return res.status(400).json({ success: false, message: "isAvailable must be true or false" });
+  }
+
+  const updated = await services().findOneAndUpdate(
+    { _id, technicianEmail: req.user.email },
+    { $set: { isAvailable: req.body.isAvailable } },
+    { returnDocument: "after" }
+  );
+  if (!updated) {
+    const exists = await services().findOne({ _id });
+    if (!exists) return res.status(404).json({ success: false, message: "Service not found" });
+    return res.status(403).json({ success: false, message: "Forbidden: this is not your service" });
+  }
   res.json(updated);
 });
 
@@ -354,11 +664,14 @@ app.post("/api/bookings", verifyToken, verifyCustomer, async (req, res) => {
       .json({ success: false, message: "You already have an active request for this service" });
   }
 
+  const now = new Date();
   const doc = {
     serviceId: String(service._id),
     serviceTitle: service.title,
     serviceImage: service.image,
     category: service.category,
+    serviceMode: service.serviceMode,
+    serviceArea: service.serviceArea,
     basePrice: service.basePrice,
     technicianName: service.technicianName,
     technicianEmail: service.technicianEmail,
@@ -371,7 +684,8 @@ app.post("/api/bookings", verifyToken, verifyCustomer, async (req, res) => {
     status: "requested",
     finalAmount: service.basePrice,
     paymentStatus: "unpaid",
-    createdAt: new Date(),
+    statusHistory: [{ status: "requested", at: now }],
+    createdAt: now,
   };
 
   try {
@@ -410,9 +724,13 @@ app.patch("/api/bookings/:id/cancel", verifyToken, verifyCustomer, async (req, r
       .json({ success: false, message: "Only a requested booking can be cancelled" });
   }
 
+  const now = new Date();
   const updated = await bookings().findOneAndUpdate(
     { _id, customerEmail: req.user.email, status: "requested" },
-    { $set: { status: "cancelled" } },
+    {
+      $set: { status: "cancelled" },
+      $push: { statusHistory: { status: "cancelled", at: now } },
+    },
     { returnDocument: "after" }
   );
   if (!updated) {
@@ -431,6 +749,22 @@ app.get("/api/bookings/technician", verifyToken, verifyTechnician, async (req, r
 
   const items = await bookings().find(filter).sort({ createdAt: -1 }).toArray();
   res.json({ items });
+});
+
+app.get("/api/bookings/:id", verifyToken, async (req, res) => {
+  const _id = toId(req.params.id);
+  if (!_id) return res.status(404).json({ success: false, message: "Booking not found" });
+
+  const booking = await bookings().findOne({ _id });
+  if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+
+  const allowed =
+    req.user.role === "admin" ||
+    booking.customerEmail === req.user.email ||
+    booking.technicianEmail === req.user.email;
+  if (!allowed) return res.status(403).json({ success: false, message: "Forbidden" });
+
+  res.json(booking);
 });
 
 app.patch("/api/bookings/:id/status", verifyToken, verifyTechnician, async (req, res) => {
@@ -463,9 +797,13 @@ app.patch("/api/bookings/:id/status", verifyToken, verifyTechnician, async (req,
     update.finalAmount = Math.round(amount * 100) / 100;
   }
 
+  const now = new Date();
   const updated = await bookings().findOneAndUpdate(
     { _id, technicianEmail: req.user.email, status: booking.status },
-    { $set: update },
+    {
+      $set: update,
+      $push: { statusHistory: { status, at: now } },
+    },
     { returnDocument: "after" }
   );
   if (!updated) {
@@ -498,6 +836,17 @@ app.patch("/api/admin/users/:id/role", verifyToken, verifyAdmin, async (req, res
 
   await users().updateOne({ _id: target._id }, { $set: { role, updatedAt: new Date() } });
   res.json({ success: true, user: publicUser({ ...target, role }) });
+});
+
+app.get("/api/admin/services", verifyToken, verifyAdmin, async (req, res) => {
+  const approvalStatus = str(req.query.approvalStatus) || str(req.query.status);
+  const filter = ["pending", "approved", "rejected"].includes(approvalStatus)
+    ? { approvalStatus }
+    : {};
+  const items = await services().find(filter).sort({ createdAt: -1 }).toArray();
+  const rank = { pending: 0, approved: 1, rejected: 2 };
+  items.sort((a, b) => (rank[a.approvalStatus] ?? 9) - (rank[b.approvalStatus] ?? 9));
+  res.json({ items });
 });
 
 app.patch("/api/admin/services/:id/approval", verifyToken, verifyAdmin, async (req, res) => {
@@ -587,6 +936,22 @@ app.use((error, _req, res, _next) => {
   if (error.type === "entity.parse.failed") {
     return res.status(400).json({ success: false, message: "Invalid JSON body" });
   }
+  if (error.type === "entity.too.large") {
+    return res.status(413).json({ success: false, message: "Request body too large" });
+  }
+  if (error.code === 11000) {
+    return res.status(409).json({ success: false, message: "Duplicate record" });
+  }
+  if (
+    [
+      "MongoServerSelectionError",
+      "MongoNetworkError",
+      "MongoTopologyClosedError",
+      "MongoNotConnectedError",
+    ].includes(error.name)
+  ) {
+    return res.status(503).json({ success: false, message: "Database unavailable" });
+  }
   const status = error.status && error.status < 600 ? error.status : 500;
   res.status(status).json({
     success: false,
@@ -599,7 +964,7 @@ const port = Number(process.env.PORT) || 5000;
 connectDb()
   .then(() => {
     app.listen(port, () => {
-      console.log(`FixMate API running on http://localhost:${port}`);
+      console.log(`ThikHobe API running on http://localhost:${port}`);
     });
   })
   .catch((error) => {
