@@ -460,6 +460,7 @@ app.get("/api/payments/verify", verifyToken, verifyCustomer, async (req, res) =>
 // Public services
 app.get("/api/services", async (req, res) => {
   const { page, limit, skip } = pageParams(req.query);
+  // Public listings always enforce approval and availability in MongoDB.
   const filter = { approvalStatus: "approved", isAvailable: true };
 
   const search = str(req.query.search).slice(0, 60);
