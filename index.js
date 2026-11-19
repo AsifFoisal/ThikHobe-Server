@@ -267,6 +267,7 @@ const isImageBuffer = (buffer) => {
 };
 
 // Uploads carry base64 images, so they get a larger body limit before global JSON parsing.
+// Authenticated base64 uploads go to ImgBB; the key never leaves the server.
 app.post("/api/uploads", express.json({ limit: "8mb" }), verifyToken, async (req, res) => {
   const key = (process.env.IMGBB_API_KEY ?? "").trim();
   if (!key) {
