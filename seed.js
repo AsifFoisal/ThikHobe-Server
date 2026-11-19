@@ -58,6 +58,7 @@ const serviceRows = [
   ["Ceiling Fan & Light Installation", "Electrical", "Fan and light fixture installation with balance and wiring checks.", "/images/service-electric-alt.jpg", 35, "1 hour", "Home Visit", "Gulshan", "nusrat@fixmate.test"],
 ];
 
+// Re-running the seed reuses existing Better Auth accounts; 422 means already present.
 const signUp = async (user) => {
   const response = await fetch(`${authUrl}/api/auth/sign-up/email`, {
     method: "POST",
