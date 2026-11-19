@@ -817,6 +817,7 @@ app.patch("/api/bookings/:id/status", verifyToken, verifyTechnician, async (req,
   res.json(updated);
 });
 
+// Admin routes are read-only except explicit role and approval mutations.
 // Admin
 app.get("/api/admin/users", verifyToken, verifyAdmin, async (_req, res) => {
   const items = await users().find({}).sort({ createdAt: -1 }).toArray();
