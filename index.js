@@ -84,6 +84,7 @@ const getStripe = () => {
 
 /**
  * The one idempotent payment writer used by both the success page and webhook.
+ * Checkout, verification, and webhook all share this path.
  * Unique bookingId / stripeSessionId indexes back up the pre-insert check.
  */
 async function savePayment(session) {
