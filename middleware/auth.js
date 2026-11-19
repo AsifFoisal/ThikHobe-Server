@@ -30,6 +30,7 @@ export async function verifyToken(req, res, next) {
     return unauthorized(res, "Unauthorized: invalid or expired token");
   }
 
+  // The JWT establishes identity; authorization still uses the fresh database record.
   // Role and profile always come from the database, not from client input.
   const user = (await findUserById(payload.sub ?? payload.id)) ??
     (typeof payload.email === "string" ? await findUserByEmail(payload.email) : null);
