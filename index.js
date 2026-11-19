@@ -925,6 +925,14 @@ app.patch("/api/users/profile", verifyToken, async (req, res) => {
     { returnDocument: "after" }
   );
   if (!updated) return res.status(404).json({ success: false, message: "User not found" });
+
+  if (req.user.role === "technician") {
+    await services().updateMany(
+      { technicianEmail: req.user.email },
+      { $set: { technicianName: name } }
+    );
+  }
+
   res.json(publicUser(updated));
 });
 
