@@ -3,7 +3,7 @@ import "dotenv/config";
 import { MongoClient, ObjectId } from "mongodb";
 
 const mongoUri = process.env.MONGODB_URI;
-const dbName = process.env.DB_NAME ?? "fixmate";
+const dbName = process.env.DB_NAME ?? "thikhobe";
 
 let client;
 let database;

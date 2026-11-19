@@ -7,8 +7,8 @@ const password = process.env.SEED_PASSWORD ?? "Demo1234";
 
 const demoUsers = [
   {
-    name: "FixMate Admin",
-    email: "admin@fixmate.test",
+    name: "ThikHobe Admin",
+    email: "admin@thikhobe.test",
     role: "admin",
     phone: "+880 1911 444 555",
     area: "Gulshan, Dhaka",
@@ -16,7 +16,7 @@ const demoUsers = [
   },
   {
     name: "Rafiul Islam",
-    email: "rafi@fixmate.test",
+    email: "rafi@thikhobe.test",
     role: "technician",
     phone: "+880 1811 222 333",
     area: "Dhanmondi, Dhaka",
@@ -24,7 +24,7 @@ const demoUsers = [
   },
   {
     name: "Nusrat Jahan",
-    email: "nusrat@fixmate.test",
+    email: "nusrat@thikhobe.test",
     role: "technician",
     phone: "+880 1811 222 334",
     area: "Mirpur, Dhaka",
@@ -32,7 +32,7 @@ const demoUsers = [
   },
   {
     name: "Tanvir Ahmed",
-    email: "tanvir@fixmate.test",
+    email: "tanvir@thikhobe.test",
     role: "customer",
     phone: "+880 1711 000 000",
     area: "Dhanmondi, Dhaka",
@@ -41,21 +41,21 @@ const demoUsers = [
 ];
 
 const serviceRows = [
-  ["iPhone Screen & Battery Replacement", "Smartphone", "Original-quality screen and battery replacement with a post-repair bench test.", "/images/service-phone-alt.jpg", 120, "1-2 hours", "Home Visit", "Dhanmondi", "rafi@fixmate.test"],
-  ["Samsung Charging Port Repair", "Smartphone", "Charging port replacement and board inspection for Samsung phones.", "/images/service-smartphone.jpg", 45, "45 minutes", "Shop Drop-off", "Mirpur", "rafi@fixmate.test"],
-  ["Smartphone Water Damage Treatment", "Smartphone", "Ultrasonic cleaning and corrosion treatment after liquid damage.", "/images/service-phone-alt.jpg", 55, "2 hours", "Shop Drop-off", "Mirpur", "nusrat@fixmate.test"],
-  ["MacBook Logic Board Diagnosis", "Laptop & PC", "Board-level diagnosis and a written repair estimate before any work begins.", "/images/service-laptop.jpg", 90, "1 day", "Shop Drop-off", "Dhanmondi", "nusrat@fixmate.test"],
-  ["Laptop Keyboard & Hinge Repair", "Laptop & PC", "Keyboard replacement, hinge tightening, and display alignment.", "/images/service-laptop-alt.jpg", 60, "2-3 hours", "Home Visit", "Mirpur", "nusrat@fixmate.test"],
-  ["Split AC Service & Gas Refill", "AC", "Deep coil cleaning, filter service, and refrigerant top-up for split units.", "/images/service-ac.jpg", 85, "2-3 hours", "Home Visit", "Uttara", "rafi@fixmate.test"],
-  ["Window AC Installation", "AC", "Bracket fitting, drainage, and a full cooling test for window units.", "/images/service-ac-alt.jpg", 110, "3 hours", "Home Visit", "Uttara", "rafi@fixmate.test"],
-  ["Refrigerator Cooling Diagnosis", "Refrigerator", "Compressor, thermostat, and gas pressure diagnosis with a repair plan.", "/images/service-refrigerator.jpg", 70, "2 hours", "Home Visit", "Mohammadpur", "nusrat@fixmate.test"],
-  ["Refrigerator Door Seal Replacement", "Refrigerator", "Door gasket replacement and leak test to restore cooling efficiency.", "/images/service-fridge-alt.jpg", 45, "1 hour", "Home Visit", "Mirpur", "rafi@fixmate.test"],
-  ["Washing Machine Drum Repair", "Washing Machine", "Drum, bearing, and suspension inspection with replacement as needed.", "/images/service-washer.jpg", 95, "3 hours", "Home Visit", "Mohammadpur", "nusrat@fixmate.test"],
-  ["Washing Machine Drain Pump Repair", "Washing Machine", "Drain pump replacement and a full cycle leak test.", "/images/service-washer-alt.jpg", 60, "2 hours", "Shop Drop-off", "Mirpur", "nusrat@fixmate.test"],
-  ["LED TV Panel Diagnosis", "TV", "Panel, backlight, and main-board diagnosis for LED televisions.", "/images/service-tv.jpg", 65, "1-2 hours", "Shop Drop-off", "Banani", "rafi@fixmate.test"],
-  ["TV Wall Mount & Setup", "TV", "Secure wall mounting, cable routing, and input setup.", "/images/service-tv.jpg", 40, "1 hour", "Home Visit", "Banani", "nusrat@fixmate.test"],
-  ["Home Electrical Safety Inspection", "Electrical", "Breaker, wiring, and earthing inspection with a safety report.", "/images/service-electric.jpg", 50, "1-2 hours", "Home Visit", "Gulshan", "rafi@fixmate.test"],
-  ["Ceiling Fan & Light Installation", "Electrical", "Fan and light fixture installation with balance and wiring checks.", "/images/service-electric-alt.jpg", 35, "1 hour", "Home Visit", "Gulshan", "nusrat@fixmate.test"],
+  ["iPhone Screen & Battery Replacement", "Smartphone", "Original-quality screen and battery replacement with a post-repair bench test.", "/images/service-phone-alt.jpg", 120, "1-2 hours", "Home Visit", "Dhanmondi", "rafi@thikhobe.test"],
+  ["Samsung Charging Port Repair", "Smartphone", "Charging port replacement and board inspection for Samsung phones.", "/images/service-smartphone.jpg", 45, "45 minutes", "Shop Drop-off", "Mirpur", "rafi@thikhobe.test"],
+  ["Smartphone Water Damage Treatment", "Smartphone", "Ultrasonic cleaning and corrosion treatment after liquid damage.", "/images/service-phone-alt.jpg", 55, "2 hours", "Shop Drop-off", "Mirpur", "nusrat@thikhobe.test"],
+  ["MacBook Logic Board Diagnosis", "Laptop & PC", "Board-level diagnosis and a written repair estimate before any work begins.", "/images/service-laptop.jpg", 90, "1 day", "Shop Drop-off", "Dhanmondi", "nusrat@thikhobe.test"],
+  ["Laptop Keyboard & Hinge Repair", "Laptop & PC", "Keyboard replacement, hinge tightening, and display alignment.", "/images/service-laptop-alt.jpg", 60, "2-3 hours", "Home Visit", "Mirpur", "nusrat@thikhobe.test"],
+  ["Split AC Service & Gas Refill", "AC", "Deep coil cleaning, filter service, and refrigerant top-up for split units.", "/images/service-ac.jpg", 85, "2-3 hours", "Home Visit", "Uttara", "rafi@thikhobe.test"],
+  ["Window AC Installation", "AC", "Bracket fitting, drainage, and a full cooling test for window units.", "/images/service-ac-alt.jpg", 110, "3 hours", "Home Visit", "Uttara", "rafi@thikhobe.test"],
+  ["Refrigerator Cooling Diagnosis", "Refrigerator", "Compressor, thermostat, and gas pressure diagnosis with a repair plan.", "/images/service-refrigerator.jpg", 70, "2 hours", "Home Visit", "Mohammadpur", "nusrat@thikhobe.test"],
+  ["Refrigerator Door Seal Replacement", "Refrigerator", "Door gasket replacement and leak test to restore cooling efficiency.", "/images/service-fridge-alt.jpg", 45, "1 hour", "Home Visit", "Mirpur", "rafi@thikhobe.test"],
+  ["Washing Machine Drum Repair", "Washing Machine", "Drum, bearing, and suspension inspection with replacement as needed.", "/images/service-washer.jpg", 95, "3 hours", "Home Visit", "Mohammadpur", "nusrat@thikhobe.test"],
+  ["Washing Machine Drain Pump Repair", "Washing Machine", "Drain pump replacement and a full cycle leak test.", "/images/service-washer-alt.jpg", 60, "2 hours", "Shop Drop-off", "Mirpur", "nusrat@thikhobe.test"],
+  ["LED TV Panel Diagnosis", "TV", "Panel, backlight, and main-board diagnosis for LED televisions.", "/images/service-tv.jpg", 65, "1-2 hours", "Shop Drop-off", "Banani", "rafi@thikhobe.test"],
+  ["TV Wall Mount & Setup", "TV", "Secure wall mounting, cable routing, and input setup.", "/images/service-tv.jpg", 40, "1 hour", "Home Visit", "Banani", "nusrat@thikhobe.test"],
+  ["Home Electrical Safety Inspection", "Electrical", "Breaker, wiring, and earthing inspection with a safety report.", "/images/service-electric.jpg", 50, "1-2 hours", "Home Visit", "Gulshan", "rafi@thikhobe.test"],
+  ["Ceiling Fan & Light Installation", "Electrical", "Fan and light fixture installation with balance and wiring checks.", "/images/service-electric-alt.jpg", 35, "1 hour", "Home Visit", "Gulshan", "nusrat@thikhobe.test"],
 ];
 
 // Re-running the seed reuses existing Better Auth accounts; 422 means already present.

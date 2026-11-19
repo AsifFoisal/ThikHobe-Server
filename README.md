@@ -1,6 +1,6 @@
-# FixMate — Backend
+# ThikHobe — Backend
 
-REST API for **FixMate**, a smart device and home appliance repair platform. Customers request repairs, technicians manage services and jobs, admins moderate the marketplace, and customers pay through Stripe only after a job is completed.
+REST API for **ThikHobe**, a smart device and home appliance repair platform. Customers request repairs, technicians manage services and jobs, admins moderate the marketplace, and customers pay through Stripe only after a job is completed.
 
 ## Technology stack
 

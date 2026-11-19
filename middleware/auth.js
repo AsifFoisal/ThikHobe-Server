@@ -3,8 +3,8 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { findUserByEmail, findUserById, publicUser } from "../db.js";
 
 const authUrl = (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/+$/, "");
-const issuer = process.env.JWT_ISSUER ?? "fixmate";
-const audience = process.env.JWT_AUDIENCE ?? "fixmate-client";
+const issuer = process.env.JWT_ISSUER ?? "thikhobe";
+const audience = process.env.JWT_AUDIENCE ?? "thikhobe-client";
 const jwksUrl =
   (process.env.BETTER_AUTH_JWKS_URL ?? "").trim() || `${authUrl}/api/auth/jwks`;
 
