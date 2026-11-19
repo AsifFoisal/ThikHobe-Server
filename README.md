@@ -257,3 +257,10 @@ Payment rules:
 Runtime: `express`, `cors`, `dotenv`, `mongodb`, `jose`, `stripe`.
 
 No Mongoose, payment service layer, or background queue is used.
+
+## Deployment checklist
+
+- Set production `CLIENT_URL` and `CORS_ORIGINS`; no wildcard origin is used.
+- Point `BETTER_AUTH_URL` and the JWKS URL at the deployed Next.js app.
+- Register the deployed `POST /api/payments/webhook` endpoint in Stripe test mode and set its signing secret.
+- Set `MONGODB_URI`, `DB_NAME`, `STRIPE_SECRET_KEY`, and `IMGBB_API_KEY` in the production environment.
