@@ -42,6 +42,7 @@ const BOOKING_STATUSES = [
   "cancelled",
 ];
 const ACTIVE_STATUSES = ["requested", "accepted", "in-progress"];
+// One-way pipeline: completed, rejected, and cancelled are terminal.
 const NEXT_STATUS = {
   requested: ["accepted", "rejected"],
   accepted: ["in-progress"],
