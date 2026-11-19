@@ -72,6 +72,7 @@ export async function closeDb() {
   database = undefined;
 }
 
+// Indexes are created once at startup before the HTTP listener starts.
 async function ensureIndexes(db) {
   await Promise.all([
     db.collection("services").createIndex({
