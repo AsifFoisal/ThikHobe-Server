@@ -1,5 +1,7 @@
 import "dotenv/config"
 
+import Stripe from "stripe"
+
 import { closeDb, connectDb } from "./db.js"
 
 const authUrl = (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(
@@ -286,6 +288,46 @@ const bookingSeeds = [
   },
 ]
 
+let stripeClient
+
+const getStripe = () => {
+  const key = (process.env.STRIPE_SECRET_KEY ?? "").trim()
+  if (!key.startsWith("sk_test_")) return null
+  stripeClient ??= new Stripe(key, { timeout: 10000, maxNetworkRetries: 1 })
+  return stripeClient
+}
+
+const stripeIdempotencyKey = (title, amount) =>
+  `thikhobe-seed-v3-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.round(amount * 100)}`
+
+async function createTestPayment(stripe, serviceTitle, amount, customerEmail) {
+  const paymentIntent = await stripe.paymentIntents.create(
+    {
+      amount: Math.round(amount * 100),
+      currency: "usd",
+      payment_method: "pm_card_visa",
+      confirm: true,
+      automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+      description: serviceTitle,
+      receipt_email: customerEmail,
+      metadata: {
+        seed: "true",
+        service: serviceTitle,
+        customerEmail,
+      },
+    },
+    { idempotencyKey: stripeIdempotencyKey(serviceTitle, amount) }
+  )
+
+  if (paymentIntent.status !== "succeeded") {
+    throw new Error(
+      `Stripe test payment for "${serviceTitle}" did not succeed (${paymentIntent.status})`
+    )
+  }
+
+  return paymentIntent
+}
+
 const sessionCookie = (response) => {
   const values =
     typeof response.headers.getSetCookie === "function"
@@ -467,6 +509,41 @@ try {
     await ensureAccount(db, account)
   }
 
+  const stripe = getStripe()
+  if (!stripe) {
+    throw new Error(
+      "A Stripe test secret key (STRIPE_SECRET_KEY=sk_test_...) is required to seed paid bookings."
+    )
+  }
+
+  const customer = seedAccounts.find((account) => account.role === "customer")
+  if (!customer) {
+    throw new Error("No seed customer account found")
+  }
+
+  console.log("Creating real Stripe test payments...")
+  const stripePayments = new Map()
+
+  for (const seed of bookingSeeds.filter(
+    (booking) => booking.paymentStatus === "paid"
+  )) {
+    const service = serviceRows.find((row) => row.title === seed.title)
+    if (!service) {
+      throw new Error(`Missing service for paid booking: ${seed.title}`)
+    }
+
+    const paymentIntent = await createTestPayment(
+      stripe,
+      seed.title,
+      service.basePrice,
+      customer.email
+    )
+    stripePayments.set(seed.title, paymentIntent)
+    console.log(
+      `Stripe test PaymentIntent: ${paymentIntent.id} ($${service.basePrice})`
+    )
+  }
+
   console.log("Clearing previous seed data...")
   await Promise.all([
     db.collection("bookings").deleteMany({}),
@@ -500,12 +577,6 @@ try {
   console.log(`Created ${servicesWithIds.length} services`)
 
   console.log("Creating customer bookings...")
-  const customer = seedAccounts.find((account) => account.role === "customer")
-
-  if (!customer) {
-    throw new Error("No seed customer account found")
-  }
-
   const bookingDocs = bookingSeeds.map((seed) => {
     const service = serviceByTitle[seed.title]
 
@@ -552,22 +623,35 @@ try {
 
   const paymentDocs = bookingsWithIds
     .filter((booking) => booking.paymentStatus === "paid")
-    .map((booking, index) => ({
-      bookingId: String(booking._id),
-      serviceTitle: booking.serviceTitle,
-      customerName: booking.customerName,
-      customerEmail: booking.customerEmail,
-      technicianName: booking.technicianName,
-      technicianEmail: booking.technicianEmail,
-      amount: booking.finalAmount,
-      currency: "usd",
-      transactionId: `pi_seed_paid_${index + 1}`,
-      stripeSessionId: `cs_seed_paid_${index + 1}`,
-      paymentStatus: "paid",
-      paidAt:
-        booking.statusHistory.find((entry) => entry.status === "paid")?.at ??
-        booking.createdAt,
-    }))
+    .map((booking) => {
+      const paymentIntent = stripePayments.get(booking.serviceTitle)
+
+      if (!paymentIntent) {
+        throw new Error(`No Stripe test payment for booking: ${booking.serviceTitle}`)
+      }
+
+      if (paymentIntent.amount !== Math.round(booking.finalAmount * 100)) {
+        throw new Error(
+          `Stripe amount mismatch for booking: ${booking.serviceTitle}`
+        )
+      }
+
+      return {
+        bookingId: String(booking._id),
+        serviceTitle: booking.serviceTitle,
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        technicianName: booking.technicianName,
+        technicianEmail: booking.technicianEmail,
+        amount: booking.finalAmount,
+        currency: "usd",
+        transactionId: paymentIntent.id,
+        // Seed payments use PaymentIntents, not Checkout Sessions.
+        stripeSessionId: `seed_test_pi_${paymentIntent.id}`,
+        paymentStatus: "paid",
+        paidAt: new Date(paymentIntent.created * 1000),
+      }
+    })
 
   if (paymentDocs.length) {
     await db.collection("payments").insertMany(paymentDocs)
@@ -590,10 +674,21 @@ try {
   console.log(
     `Customer bookings: ${bookingsWithIds.length} — 2 paid/completed, 2 in progress, 1 accepted`
   )
-  console.log(`Payments: ${paymentDocs.length} paid`)
+  console.log(
+    `Payments: ${paymentDocs.length} real Stripe test PaymentIntents`
+  )
+  if (paymentDocs.length) {
+    console.log(
+      `Stripe transaction IDs: ${paymentDocs
+        .map((payment) => payment.transactionId)
+        .join(", ")}`
+    )
+  }
 } catch (error) {
   console.error("Seed failed:", error.message)
-  console.error(`Start the Next.js app at ${authUrl} and check MONGODB_URI.`)
+  console.error(
+    `Start the Next.js app at ${authUrl}, check MONGODB_URI, and confirm the Stripe test key.`
+  )
   process.exitCode = 1
 } finally {
   await closeDb()

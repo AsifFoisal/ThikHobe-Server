@@ -52,7 +52,7 @@ On Windows PowerShell, use `Copy-Item .env.example .env`.
 | `BETTER_AUTH_JWKS_URL` | No | Optional JWKS override. Defaults to `<BETTER_AUTH_URL>/api/auth/jwks`. |
 | `JWT_ISSUER` | Yes | Must match the Next.js Better Auth JWT plugin issuer. |
 | `JWT_AUDIENCE` | Yes | Must match the Next.js Better Auth JWT plugin audience. |
-| `STRIPE_SECRET_KEY` | For payments | Stripe **test** secret key (`sk_test_...`). The API rejects non-test keys. |
+| `STRIPE_SECRET_KEY` | For payments and seed | Stripe **test** secret key (`sk_test_...`). The API rejects non-test keys. Required by `npm run seed` for real test paid bookings. |
 | `STRIPE_WEBHOOK_SECRET` | For webhooks | Signing secret (`whsec_...`) for `POST /api/payments/webhook`. |
 | `IMGBB_API_KEY` | For uploads and seed images | Server-only ImgBB key. Uploads return 503 when absent. |
 
@@ -80,7 +80,9 @@ The seed is idempotent for accounts but **resets marketplace data**: it deletes 
 
 - 15 services under `technician@thikhobe.com` — 9 approved, 4 pending, 2 rejected.
 - 5 customer bookings under `customer@thikhobe.com` — 2 paid/completed, 2 in progress, 1 accepted.
-- 2 paid payment records for the completed bookings.
+- 2 paid payment records backed by real Stripe test PaymentIntents.
+
+Paid bookings use Stripe test PaymentIntents with the `pm_card_visa` test card. Their local `transactionId` is the real `pi_...` ID; `stripeSessionId` is a local seed reference because these are PaymentIntents, not Checkout Sessions. A valid `STRIPE_SECRET_KEY` (`sk_test_...`) is required.
 
 Service images are hosted on ImgBB. The script prints the account credentials:
 
