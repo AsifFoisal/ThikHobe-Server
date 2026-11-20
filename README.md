@@ -19,7 +19,7 @@ server/
 ├── db.js                 Single MongoDB connection, collections, and indexes
 ├── middleware/
 │   └── auth.js           verifyToken, verifyCustomer, verifyTechnician, verifyAdmin
-├── seed.js               Idempotent demo users, services, and bookings
+├── seed.js               Seed accounts, ImgBB services, and customer bookings
 ├── .env.example
 └── package.json
 ```
@@ -54,8 +54,7 @@ On Windows PowerShell, use `Copy-Item .env.example .env`.
 | `JWT_AUDIENCE` | Yes | Must match the Next.js Better Auth JWT plugin audience. |
 | `STRIPE_SECRET_KEY` | For payments | Stripe **test** secret key (`sk_test_...`). The API rejects non-test keys. |
 | `STRIPE_WEBHOOK_SECRET` | For webhooks | Signing secret (`whsec_...`) for `POST /api/payments/webhook`. |
-| `IMGBB_API_KEY` | For uploads | Server-only ImgBB key. Uploads return 503 when absent. |
-| `SEED_PASSWORD` | No | Password for demo accounts created by `npm run seed`. Defaults to `Demo1234`. |
+| `IMGBB_API_KEY` | For uploads and seed images | Server-only ImgBB key. Uploads return 503 when absent. |
 
 `BETTER_AUTH_SECRET` belongs in the Next.js `.env`, not this server. Express never receives it; it verifies tokens using the public JWKS.
 
@@ -66,7 +65,7 @@ Never commit a real `.env` file or any secret.
 ```bash
 npm run dev     # development with Node watch mode
 npm start       # production start
-npm run seed    # create demo users, services, and bookings
+npm run seed    # create accounts and reset demo marketplace data
 ```
 
 The server does not listen until the MongoDB connection and indexes are ready.
@@ -77,7 +76,19 @@ Seed once while the Next.js app is running, because Better Auth creates the acco
 npm run seed
 ```
 
-The seed is safe to rerun: existing users are reused, services are upserted, and bookings are not duplicated. The script creates an admin, two technicians, and a customer, and prints their emails. The password is `SEED_PASSWORD`.
+The seed is idempotent for accounts but **resets marketplace data**: it deletes all services, bookings, and payments, removes the four legacy `.test` demo accounts, then recreates:
+
+- 15 services under `technician@thikhobe.com` — 9 approved, 4 pending, 2 rejected.
+- 5 customer bookings under `customer@thikhobe.com` — 2 paid/completed, 2 in progress, 1 accepted.
+- 2 paid payment records for the completed bookings.
+
+Service images are hosted on ImgBB. The script prints the account credentials:
+
+| Role       | Email                    | Password        |
+| ---------- | ------------------------ | --------------- |
+| Admin      | `admin@thikhobe.com`      | `admin123`      |
+| Technician | `technician@thikhobe.com` | `technician123` |
+| Customer   | `customer@thikhobe.com`   | `customer123`   |
 
 ## API overview
 
