@@ -78,7 +78,7 @@ npm run seed
 
 The seed is idempotent for accounts but **resets marketplace data**: it deletes all services, bookings, and payments, removes the four legacy `.test` demo accounts, then recreates:
 
-- 15 services under `technician@thikhobe.com` — 9 approved, 4 pending, 2 rejected.
+- 19 services across two technician accounts — 13 approved, 4 pending, 2 rejected. The second technician owns the four newest approved services.
 - 5 customer bookings under `customer@thikhobe.com` — 2 paid/completed, 2 in progress, 1 accepted.
 - 2 paid payment records backed by real Stripe test PaymentIntents.
 
@@ -86,10 +86,11 @@ Paid bookings use Stripe test PaymentIntents with the `pm_card_visa` test card. 
 
 Service images are hosted on ImgBB. The script prints the account credentials:
 
-| Role       | Email                    | Password        |
-| ---------- | ------------------------ | --------------- |
+| Role       | Email                     | Password        |
+| ---------- | ------------------------- | --------------- |
 | Admin      | `admin@thikhobe.com`      | `admin123`      |
 | Technician | `technician@thikhobe.com` | `technician123` |
+| Technician | `technician2@thikhobe.com` | `technician456` |
 | Customer   | `customer@thikhobe.com`   | `customer123`   |
 
 ## API overview

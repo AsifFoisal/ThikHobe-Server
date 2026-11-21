@@ -33,6 +33,17 @@ const seedAccounts = [
     bio: "Verified multi-category repair technician covering phones, laptops, and home appliances.",
   },
   {
+    name: "Technician Two",
+    email: "technician2@thikhobe.com",
+    password: "technician456",
+    tempPassword: "TempTech456",
+    role: "technician",
+    signupRole: "technician",
+    phone: "+880 1611 555 888",
+    area: "Mirpur, Dhaka",
+    bio: "Workshop and on-site specialist for compressors, motors, and laptop upgrades.",
+  },
+  {
     name: "Customer",
     email: "customer@thikhobe.com",
     password: "customer123",
@@ -232,6 +243,58 @@ const serviceRows = [
     serviceMode: "Home Visit",
     serviceArea: "Banani",
     approvalStatus: "rejected",
+  },
+  {
+    title: "AC PCB & Display Board Repair",
+    category: "AC",
+    description:
+      "Control and display board diagnosis, component-level repair, and a full cooling-cycle test.",
+    image: "https://i.ibb.co/jkdfBfxR/34099331.jpg",
+    basePrice: 75,
+    estimatedDuration: "2 hours",
+    serviceMode: "Shop Drop-off",
+    serviceArea: "Mirpur",
+    approvalStatus: "approved",
+    technicianEmail: "technician2@thikhobe.com",
+  },
+  {
+    title: "Refrigerator Compressor Replacement",
+    category: "Refrigerator",
+    description:
+      "Compressor swap, gas charging, and leak testing to bring back full cooling.",
+    image: "https://i.ibb.co/0j4g0Xzh/38709544-crop.jpg",
+    basePrice: 120,
+    estimatedDuration: "3 hours",
+    serviceMode: "Home Visit",
+    serviceArea: "Mirpur",
+    approvalStatus: "approved",
+    technicianEmail: "technician2@thikhobe.com",
+  },
+  {
+    title: "Washing Machine Pulsator & Belt Repair",
+    category: "Washing Machine",
+    description:
+      "Pulsator, belt, and drive inspection with replacement of worn moving parts.",
+    image: "https://i.ibb.co/Z1fcxfcw/37492288-crop.jpg",
+    basePrice: 80,
+    estimatedDuration: "2 hours",
+    serviceMode: "Home Visit",
+    serviceArea: "Mirpur",
+    approvalStatus: "approved",
+    technicianEmail: "technician2@thikhobe.com",
+  },
+  {
+    title: "Laptop SSD & RAM Upgrade",
+    category: "Laptop & PC",
+    description:
+      "NVMe SSD and memory upgrade with migration of the existing system and a stress test.",
+    image: "https://i.ibb.co/xSqp7RCd/37489058-crop.jpg",
+    basePrice: 55,
+    estimatedDuration: "1 hour",
+    serviceMode: "Shop Drop-off",
+    serviceArea: "Mirpur",
+    approvalStatus: "approved",
+    technicianEmail: "technician2@thikhobe.com",
   },
 ]
 
@@ -557,13 +620,21 @@ try {
 
   console.log("Creating services...")
   const now = Date.now()
-  const serviceDocs = serviceRows.map((row, index) => ({
-    ...row,
-    technicianName: "Technician",
-    technicianEmail: "technician@thikhobe.com",
-    isAvailable: true,
-    createdAt: new Date(now - index * 86400000),
-  }))
+  const technicianNameByEmail = new Map(
+    seedAccounts
+      .filter((account) => account.role === "technician")
+      .map((account) => [account.email, account.name])
+  )
+  const serviceDocs = serviceRows.map((row, index) => {
+    const { technicianEmail = "technician@thikhobe.com", ...service } = row
+    return {
+      ...service,
+      technicianName: technicianNameByEmail.get(technicianEmail),
+      technicianEmail,
+      isAvailable: true,
+      createdAt: new Date(now - index * 86400000),
+    }
+  })
 
   const serviceResult = await db.collection("services").insertMany(serviceDocs)
   const servicesWithIds = serviceDocs.map((service, index) => ({
