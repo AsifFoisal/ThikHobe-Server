@@ -69,7 +69,7 @@ const serviceRows = [
     category: "Smartphone",
     description:
       "Original-quality screen and battery replacement with a post-repair bench test.",
-    image: "https://i.ibb.co/Pzcn39GM/62ca61656732.jpg",
+    image: "/images/services/iphone-screen-battery.jpg",
     basePrice: 120,
     estimatedDuration: "1-2 hours",
     serviceMode: "Home Visit",
@@ -93,7 +93,7 @@ const serviceRows = [
     category: "Laptop & PC",
     description:
       "Board-level diagnosis and a written repair estimate before any work begins.",
-    image: "https://i.ibb.co/SwLSgc3s/37259923e039.jpg",
+    image: "/images/services/macbook-logic-board.jpg",
     basePrice: 90,
     estimatedDuration: "1 day",
     serviceMode: "Shop Drop-off",
@@ -105,7 +105,7 @@ const serviceRows = [
     category: "Laptop & PC",
     description:
       "Keyboard replacement, hinge tightening, and display alignment.",
-    image: "https://i.ibb.co/f3XW8Jq/43e3249f240c.jpg",
+    image: "/images/services/laptop-keyboard-hinge.jpg",
     basePrice: 60,
     estimatedDuration: "2-3 hours",
     serviceMode: "Home Visit",
@@ -177,7 +177,7 @@ const serviceRows = [
     category: "Smartphone",
     description:
       "Ultrasonic cleaning and corrosion treatment after liquid damage.",
-    image: "https://i.ibb.co/Pzcn39GM/62ca61656732.jpg",
+    image: "/images/services/smartphone-water-damage.jpg",
     basePrice: 55,
     estimatedDuration: "2 hours",
     serviceMode: "Shop Drop-off",
@@ -189,7 +189,7 @@ const serviceRows = [
     category: "Refrigerator",
     description:
       "Door gasket replacement and leak test to restore cooling efficiency.",
-    image: "https://i.ibb.co/FL53H59N/ce85f812606f.jpg",
+    image: "/images/services/refrigerator-door-seal.jpg",
     basePrice: 45,
     estimatedDuration: "1 hour",
     serviceMode: "Home Visit",
