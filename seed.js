@@ -22,7 +22,7 @@ const seedAccounts = [
     bio: "Platform operations lead.",
   },
   {
-    name: "Rafiul Islam",
+    name: "Technician",
     email: "technician@thikhobe.com",
     password: "technician123",
     tempPassword: "TempTech123",
@@ -33,7 +33,7 @@ const seedAccounts = [
     bio: "Verified multi-category repair technician covering phones, laptops, and home appliances.",
   },
   {
-    name: "Tanvir Ahmed",
+    name: "Customer",
     email: "customer@thikhobe.com",
     password: "customer123",
     tempPassword: "TempCust123",
@@ -559,7 +559,7 @@ try {
   const now = Date.now()
   const serviceDocs = serviceRows.map((row, index) => ({
     ...row,
-    technicianName: "Rafiul Islam",
+    technicianName: "Technician",
     technicianEmail: "technician@thikhobe.com",
     isAvailable: true,
     createdAt: new Date(now - index * 86400000),
